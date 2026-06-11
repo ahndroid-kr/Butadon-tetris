@@ -34,33 +34,33 @@
   }
   #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
   #game{
-    width:400px;
+    width:408px;
     transform-origin:center center;
     position:relative;
-    padding:10px 12px 14px;
+    padding:6px 10px 8px;
   }
 
   /* ---------- 타이틀 ---------- */
-  .title{ text-align:center; line-height:1; margin:2px 0 8px; user-select:none;}
+  .title{ text-align:center; line-height:1; margin:0 0 5px; user-select:none;}
   .title .ko{
-    font-family:'Jua',sans-serif; font-size:30px; letter-spacing:1px;
+    font-family:'Jua',sans-serif; font-size:26px; letter-spacing:1px;
     color:#fff;
     text-shadow:
       -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink),
       4px 4px 0 var(--red), 6px 6px 0 var(--ink);
   }
   .title .en{
-    font-family:'DotGothic16',monospace; font-size:11px; letter-spacing:4px;
+    font-family:'DotGothic16',monospace; font-size:10px; letter-spacing:4px;
     color:var(--ink); margin-top:7px; opacity:.85;
   }
 
   /* ---------- HUD ---------- */
-  .hud{ display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
+  .hud{ display:flex; gap:8px; align-items:stretch; margin-bottom:6px;}
   .panel{
     background:var(--paper); border:3px solid var(--ink); border-radius:12px;
     box-shadow:0 3px 0 var(--ink);
   }
-  .stats{ flex:1; padding:7px 10px; display:flex; flex-direction:column; justify-content:center;}
+  .stats{ flex:1; padding:6px 10px; display:flex; flex-direction:column; justify-content:center;}
   .stats .score{ font-size:30px; line-height:1; color:var(--ink);}
   .stats .score small{ font-family:'DotGothic16',monospace; font-size:9px; letter-spacing:2px; display:block; opacity:.7; margin-bottom:2px;}
   .stats .sub{ display:flex; gap:14px; margin-top:5px; font-size:13px;}
@@ -128,18 +128,18 @@
   @keyframes shake{ 0%,100%{transform:translate(0,0);} 20%{transform:translate(-4px,2px);} 40%{transform:translate(4px,-2px);} 60%{transform:translate(-3px,-2px);} 80%{transform:translate(3px,2px);} }
 
   /* ---------- 모바일 컨트롤 ---------- */
-  .pad{ display:grid; grid-template-columns:repeat(5,1fr); gap:7px; margin-top:10px;}
+  .pad{ display:grid; grid-template-columns:repeat(5,1fr); gap:7px; margin-top:7px;}
   .btn{
-    font-family:'Jua',sans-serif; font-size:22px; color:var(--ink);
+    font-family:'Jua',sans-serif; font-size:16px; color:var(--ink);
     background:var(--paper); border:3px solid var(--ink); border-radius:12px;
-    box-shadow:0 4px 0 var(--ink); padding:12px 0; text-align:center;
+    box-shadow:0 4px 0 var(--ink); padding:9px 0; text-align:center;
     user-select:none; cursor:pointer; transition:transform .04s, box-shadow .04s;
   }
   .btn:active{ transform:translateY(3px); box-shadow:0 1px 0 var(--ink);}
   .btn.wide{ font-size:15px;}
   .btn.red{ background:var(--red); color:#fff;}
 
-  .toprow{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .toprow{ display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;}
   .pill{
     font-family:'DotGothic16',monospace; font-size:9px; letter-spacing:1px;
     background:var(--paper); border:2px solid var(--ink); border-radius:20px;
@@ -238,11 +238,11 @@
     </div>
 
     <div class="pad">
-      <div class="btn" data-act="left">◀</div>
-      <div class="btn" data-act="rotate">⟳</div>
-      <div class="btn" data-act="right">▶</div>
-      <div class="btn" data-act="soft">▼</div>
-      <div class="btn red wide" data-act="hard">뚝딱<br>낙하</div>
+      <div class="btn" data-act="left">왼쪽</div>
+      <div class="btn" data-act="rotate">회전</div>
+      <div class="btn" data-act="right">오른쪽</div>
+      <div class="btn" data-act="soft">아래</div>
+      <div class="btn red wide" data-act="hard">뚝딱낙하</div>
     </div>
 
     <!-- 시작 -->
@@ -279,7 +279,7 @@
         <img id="overFace" class="face" alt="">
         <div class="bigscore"><small>최종 점수</small><span id="finalScore">0</span></div>
         <div class="metaline">지운 줄 <b id="finalLines">0</b> · 시간 <b id="finalTime">0:00</b></div>
-        <input class="nick" id="nickInput" maxlength="12" value="규동" placeholder="이름">
+        <input class="nick" id="nickInput" maxlength="12" placeholder="이름 입력">
         <button class="btn2 go" id="submitBtn">점수 등록하기</button>
         <button class="btn2" id="retryBtn">다시 하기</button>
       </div>
@@ -352,9 +352,32 @@ boardCv.style.width = BW+'px'; boardCv.style.height = BH+'px';
 nextCv.width = 64*dpr; nextCv.height = 64*dpr; nctx.scale(dpr,dpr);
 nextCv.style.width='64px'; nextCv.style.height='64px';
 
-/* 이미지 로드(폴백 포함) */
-function loadImg(src){ const i=new Image(); i.src=src; i.onerror=()=>{i.failed=true;}; return i; }
-const stageImgs = STAGE_IMG.map(loadImg);
+/* 이미지 로드 + 배경(세이지그린) 크로마키 제거 — same-origin에서만 동작 */
+function chromaKey(img){
+  try{
+    const w=img.naturalWidth, h=img.naturalHeight;
+    if(!w||!h) return null;
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    const x=cv.getContext('2d'); x.drawImage(img,0,0);
+    const d=x.getImageData(0,0,w,h), p=d.data;
+    const tr=p[0], tg=p[1], tb=p[2];   // 좌상단 = 배경색 기준
+    const TOL=80, T2=TOL*TOL;
+    for(let i=0;i<p.length;i+=4){
+      const dr=p[i]-tr, dg=p[i+1]-tg, db=p[i+2]-tb;
+      if(dr*dr+dg*dg+db*db < T2) p[i+3]=0;
+    }
+    x.putImageData(d,0,0);
+    return cv.toDataURL('image/png');
+  }catch(e){ return null; }   // CORS 오염 등 → 원본 사용
+}
+function loadImg(src, idx){
+  const i=new Image();
+  i.onload=()=>{ i.keyed=chromaKey(i); if(idx===charStage) setChar(charStage); };
+  i.onerror=()=>{ i.failed=true; };
+  i.src=src;
+  return i;
+}
+const stageImgs = STAGE_IMG.map((s,idx)=>loadImg(s,idx));
 
 /* ===================== 사운드 ===================== */
 let actx=null;
@@ -502,7 +525,7 @@ function setChar(s){
     if(!fb){ fb=document.createElement('div'); fb.id='charFallback'; fb.style.fontSize='46px'; fb.style.lineHeight='88px'; charImg.parentNode.appendChild(fb); }
     fb.textContent=STAGE_EMOJI[s];
   } else {
-    charImg.style.display=''; charImg.src=STAGE_IMG[s];
+    charImg.style.display=''; charImg.src = im.keyed || STAGE_IMG[s];
     if(fb) fb.remove();
   }
 }
@@ -512,13 +535,17 @@ const cutin=document.getElementById('cutin');
 const cutinImg=document.getElementById('cutinImg');
 const cutinText=document.getElementById('cutinText');
 let cutinTimer=null;
+let cutinKeyed=null;
 function showCutin(n){
   const txt = n>=4 ? '부타동 탈출!!' : n===3 ? '트리플! 지방 연소!' : '더블! 살 빠진다!';
   cutinText.textContent=txt;
-  const i=new Image(); i.src=CUTIN_IMG;
-  i.onerror=()=>{ cutinImg.style.display='none'; cutinText.textContent='🎉 '+txt; };
-  i.onload=()=>{ cutinImg.style.display=''; cutinImg.src=CUTIN_IMG; };
-  cutinImg.src=CUTIN_IMG;
+  if(cutinKeyed){ cutinImg.style.display=''; cutinImg.src=cutinKeyed; }
+  else {
+    const i=new Image();
+    i.onerror=()=>{ cutinImg.style.display='none'; cutinText.textContent='🎉 '+txt; };
+    i.onload=()=>{ cutinKeyed=chromaKey(i)||CUTIN_IMG; cutinImg.style.display=''; cutinImg.src=cutinKeyed; };
+    i.src=CUTIN_IMG;
+  }
   cutin.style.display='flex';
   clearTimeout(cutinTimer);
   cutinTimer=setTimeout(()=>{ cutin.style.display='none'; }, 750);
@@ -663,10 +690,10 @@ function gameOver(){
 function fmtTime(s){ const m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
 function setFace(id, src, emoji){
   const el=document.getElementById(id);
-  const test=new Image(); test.src=src;
-  test.onerror=()=>{ el.classList.add('emoji'); el.removeAttribute('src'); el.textContent=emoji; el.style.textAlign='center'; };
-  test.onload=()=>{ el.classList.remove('emoji'); el.src=src; el.textContent=''; };
-  el.src=src;
+  const img=new Image();
+  img.onerror=()=>{ el.classList.add('emoji'); el.removeAttribute('src'); el.textContent=emoji; el.style.textAlign='center'; };
+  img.onload=()=>{ el.classList.remove('emoji'); el.textContent=''; el.src=chromaKey(img)||src; };
+  img.src=src;
 }
 
 /* 오버레이 */
@@ -675,7 +702,7 @@ function hideAll(){ document.querySelectorAll('.overlay').forEach(o=>o.classList
 
 /* ===================== 랭킹 ===================== */
 async function submitScore(){
-  const nickname=(document.getElementById('nickInput').value||'규동').trim().slice(0,12);
+  const nickname=(document.getElementById('nickInput').value||'익명').trim().slice(0,12)||'익명';
   const btn=document.getElementById('submitBtn');
   btn.disabled=true; btn.textContent='등록 중…';
   if(!sb){ openLeaderboard(); btn.disabled=false; btn.textContent='점수 등록하기'; return; }
