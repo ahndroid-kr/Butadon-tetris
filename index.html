@@ -253,8 +253,12 @@
         <img id="startFace" class="face" alt="">
         <p>줄을 지울수록 <b>규동</b>이 날씬해지고<br>쌓일수록 <b>부타동</b>이 된다!</p>
         <div class="howto">
-          <b>PC</b> · ← → 이동 · ↑ 회전 · ↓ 천천히 · <b>스페이스</b> 뚝딱낙하 · P 멈춤<br>
-          <b>모바일</b> · 아래 버튼으로 조작
+          <b>📱 모바일</b><br>
+          · 좌우로 밀기 → 블록 이동<br>
+          · 화면 톡 터치 → 회전<br>
+          · 아래로 천천히 끌기 → 빨리 내리기<br>
+          · 아래로 휙 쓸기 → 뚝딱낙하<br>
+          <span style="display:block;margin-top:6px;"><b>💻 PC</b> · ← → 이동 · ↑ 회전 · ↓ 천천히 · 스페이스 뚝딱낙하 · P 멈춤</span>
         </div>
         <button class="btn2 go" id="startBtn">시작하기</button>
         <button class="btn2 alt" id="startLbBtn">랭킹 보기</button>
@@ -771,6 +775,46 @@ document.querySelectorAll('.pad .btn').forEach(b=>{
   b.addEventListener('mouseup',()=>{ if(iv){clearInterval(iv);iv=null;} });
   b.addEventListener('mouseleave',()=>{ if(iv){clearInterval(iv);iv=null;} });
 });
+
+/* ===== 모바일: 하단 버튼 숨기고 보드 제스처로 조작 ===== */
+const isTouch = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+if(isTouch){ const pad=document.querySelector('.pad'); if(pad) pad.style.display='none'; }
+
+(function(){
+  let g=null;
+  const TAP_MOVE=14, TAP_TIME=250, FLICK_V=0.7, V_MIN=40;
+  function pt(e){ const t=e.changedTouches?e.changedTouches[0]:e; return {x:t.clientX,y:t.clientY}; }
+  boardCv.addEventListener('touchstart',e=>{
+    if(state!=='play') return;
+    e.preventDefault();
+    const p=pt(e), r=boardCv.getBoundingClientRect();
+    g={x0:p.x,y0:p.y,t0:Date.now(),stepX:r.width/COLS,stepY:r.height/ROWS,cells:0,maxd:0};
+  },{passive:false});
+  boardCv.addEventListener('touchmove',e=>{
+    if(!g||state!=='play') return;
+    e.preventDefault();
+    const p=pt(e), dx=p.x-g.x0, dy=p.y-g.y0;
+    g.maxd=Math.max(g.maxd, Math.abs(dx), Math.abs(dy));
+    if(Math.abs(dx)>Math.abs(dy)){           // 가로 우세 → 손가락 따라 좌우 이동
+      const target=Math.trunc(dx/g.stepX);
+      while(g.cells<target){ move(1); g.cells++; }
+      while(g.cells>target){ move(-1); g.cells--; }
+    }
+  },{passive:false});
+  boardCv.addEventListener('touchend',e=>{
+    if(!g||state!=='play'){ g=null; return; }
+    e.preventDefault();
+    const p=pt(e), dx=p.x-g.x0, dy=p.y-g.y0, dt=Math.max(1,Date.now()-g.t0);
+    if(g.maxd<TAP_MOVE && g.cells===0 && dt<TAP_TIME){      // 탭 → 회전
+      rotate();
+    } else if(dy>V_MIN && Math.abs(dy)>Math.abs(dx)){        // 아래 방향
+      if(dy/dt>FLICK_V) hardDrop();                          // 빠르면 뚝딱낙하
+      else { const steps=Math.max(1,Math.trunc(dy/g.stepY)); for(let i=0;i<steps&&state==='play';i++) softDrop(); } // 느리면 소프트드롭
+    }
+    g=null;
+  },{passive:false});
+  boardCv.addEventListener('touchcancel',()=>{ g=null; },{passive:false});
+})();
 
 function togglePause(){
   if(state==='play'){ state='paused'; show('pauseScreen'); }
