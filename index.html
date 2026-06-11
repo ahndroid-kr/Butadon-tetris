@@ -54,20 +54,19 @@
     color:var(--ink); margin-top:7px; opacity:.85;
   }
 
-  /* ---------- HUD ---------- */
-  .hud{ display:flex; gap:8px; align-items:stretch; margin-bottom:6px;}
+  /* ---------- HUD (한 줄) ---------- */
+  .hud{ display:flex; align-items:center; gap:14px; padding:7px 12px; margin-bottom:6px;}
   .panel{
     background:var(--paper); border:3px solid var(--ink); border-radius:12px;
     box-shadow:0 3px 0 var(--ink);
   }
-  .stats{ flex:1; padding:6px 10px; display:flex; flex-direction:column; justify-content:center;}
-  .stats .score{ font-size:30px; line-height:1; color:var(--ink);}
-  .stats .score small{ font-family:'DotGothic16',monospace; font-size:9px; letter-spacing:2px; display:block; opacity:.7; margin-bottom:2px;}
-  .stats .sub{ display:flex; gap:14px; margin-top:5px; font-size:13px;}
-  .stats .sub b{ color:var(--red); }
-  .nextbox{ width:84px; padding:6px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;}
-  .nextbox span{ font-family:'DotGothic16',monospace; font-size:8px; letter-spacing:2px; opacity:.7;}
-  #next{ display:block; image-rendering:pixelated;}
+  .hud .sc{ font-size:23px; line-height:1; color:var(--ink);}
+  .hud .sc small{ font-family:'DotGothic16',monospace; font-size:8px; letter-spacing:2px; display:block; opacity:.7; margin-bottom:1px;}
+  .hud .lv, .hud .ln{ font-size:15px;}
+  .hud b{ color:var(--red);}
+  .hud .nextinline{ margin-left:auto; display:flex; align-items:center; gap:6px;}
+  .hud .nextinline span{ font-family:'DotGothic16',monospace; font-size:8px; letter-spacing:2px; opacity:.7;}
+  #next{ display:block;}
 
   /* ---------- 플레이 영역 ---------- */
   .play{ display:flex; gap:8px; justify-content:center; position:relative;}
@@ -209,15 +208,11 @@
       <div class="pill" id="lbTopBtn">🏆 랭킹</div>
     </div>
 
-    <div class="hud">
-      <div class="panel stats">
-        <div class="score"><small>SCORE</small><span id="score">0</span></div>
-        <div class="sub"><div>LV <b id="level">1</b></div><div>줄 <b id="lines">0</b></div></div>
-      </div>
-      <div class="panel nextbox">
-        <span>NEXT</span>
-        <canvas id="next" width="64" height="64"></canvas>
-      </div>
+    <div class="hud panel">
+      <div class="sc"><small>SCORE</small><span id="score">0</span></div>
+      <div class="lv">LV <b id="level">1</b></div>
+      <div class="ln">줄 <b id="lines">0</b></div>
+      <div class="nextinline"><span>NEXT</span><canvas id="next" width="48" height="48"></canvas></div>
     </div>
 
     <div class="play">
@@ -353,8 +348,9 @@ const nctx = nextCv.getContext('2d');
 const dpr = Math.min(window.devicePixelRatio||1, 2);
 boardCv.width = BW*dpr; boardCv.height = BH*dpr;
 boardCv.style.width = BW+'px'; boardCv.style.height = BH+'px';
-nextCv.width = 64*dpr; nextCv.height = 64*dpr; nctx.scale(dpr,dpr);
-nextCv.style.width='64px'; nextCv.style.height='64px';
+const NEXT_SZ = 48;
+nextCv.width = NEXT_SZ*dpr; nextCv.height = NEXT_SZ*dpr; nctx.scale(dpr,dpr);
+nextCv.style.width=NEXT_SZ+'px'; nextCv.style.height=NEXT_SZ+'px';
 
 /* 이미지 로드 + 배경(세이지그린) 크로마키 제거 — same-origin에서만 동작 */
 function chromaKey(img){
@@ -631,10 +627,10 @@ function draw(){
   updateGauge();
 }
 function drawNext(){
-  nctx.clearRect(0,0,64,64);
+  nctx.clearRect(0,0,NEXT_SZ,NEXT_SZ);
   if(!nextPiece) return;
-  const m=nextPiece.m, n=m.length;
-  const size=14, ox=(64-(m[0].length*size))/2, oy=(64-(m.length*size))/2;
+  const m=nextPiece.m;
+  const size=10, ox=(NEXT_SZ-(m[0].length*size))/2, oy=(NEXT_SZ-(m.length*size))/2;
   for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++){
     if(m[y][x]){
       const px=ox+x*size, py=oy+y*size;
@@ -782,21 +778,34 @@ if(isTouch){ const pad=document.querySelector('.pad'); if(pad) pad.style.display
 
 (function(){
   let g=null;
-  const TAP_MOVE=14, TAP_TIME=250, FLICK_V=0.7, V_MIN=40;
+  const TAP_TIME=350, FLICK_V=0.7, V_MIN=40, VY_FLICK=1.0;
   function pt(e){ const t=e.changedTouches?e.changedTouches[0]:e; return {x:t.clientX,y:t.clientY}; }
   boardCv.addEventListener('touchstart',e=>{
     if(state!=='play') return;
     e.preventDefault();
     const p=pt(e), r=boardCv.getBoundingClientRect();
-    g={x0:p.x,y0:p.y,t0:Date.now(),stepX:r.width/COLS,stepY:r.height/ROWS,cells:0,maxd:0};
+    g={x0:p.x,y0:p.y,t0:Date.now(),stepX:r.width/COLS,stepY:r.height/ROWS,cells:0,maxd:0,
+       lx:p.x,ly:p.y,lt:Date.now(),dropped:false};
   },{passive:false});
   boardCv.addEventListener('touchmove',e=>{
     if(!g||state!=='play') return;
     e.preventDefault();
     const p=pt(e), dx=p.x-g.x0, dy=p.y-g.y0;
     g.maxd=Math.max(g.maxd, Math.abs(dx), Math.abs(dy));
-    if(Math.abs(dx)>Math.abs(dy)){           // 가로 우세 → 손가락 따라 좌우 이동
-      const target=Math.trunc(dx/g.stepX);
+
+    // 제스처 도중 빠른 아래 플릭 → 손 안 떼도 즉시 하드드롭
+    const now=Date.now(), dts=now-g.lt;
+    if(dts>=4){
+      const dxs=p.x-g.lx, dys=p.y-g.ly, vy=dys/dts;
+      if(!g.dropped && dys>=12 && vy>=VY_FLICK && dys>Math.abs(dxs)*1.3 && dy>30){
+        g.dropped=true; hardDrop();
+      }
+      g.lx=p.x; g.ly=p.y; g.lt=now;
+    }
+    if(g.dropped) return;
+
+    if(Math.abs(dx)>Math.abs(dy)){           // 가로 우세 → 손가락 따라 좌우 이동(민감)
+      const target=Math.round(dx/g.stepX);
       while(g.cells<target){ move(1); g.cells++; }
       while(g.cells>target){ move(-1); g.cells--; }
     }
@@ -804,8 +813,10 @@ if(isTouch){ const pad=document.querySelector('.pad'); if(pad) pad.style.display
   boardCv.addEventListener('touchend',e=>{
     if(!g||state!=='play'){ g=null; return; }
     e.preventDefault();
+    if(g.dropped){ g=null; return; }                        // 도중에 이미 하드드롭됨
     const p=pt(e), dx=p.x-g.x0, dy=p.y-g.y0, dt=Math.max(1,Date.now()-g.t0);
-    if(g.maxd<TAP_MOVE && g.cells===0 && dt<TAP_TIME){      // 탭 → 회전
+    const tapMove=Math.min(16, g.stepX*0.45);
+    if(g.maxd<tapMove && g.cells===0 && dt<TAP_TIME){      // 탭 → 회전
       rotate();
     } else if(dy>V_MIN && Math.abs(dy)>Math.abs(dx)){        // 아래 방향
       if(dy/dt>FLICK_V) hardDrop();                          // 빠르면 뚝딱낙하
@@ -840,13 +851,19 @@ function fit(){
   const g=document.getElementById('game');
   g.style.transform='scale(1)';
   const w=g.offsetWidth, h=g.offsetHeight;
-  const s=Math.min((window.innerWidth-8)/w, (window.innerHeight-8)/h, 1);
+  const vw=(window.visualViewport ? window.visualViewport.width  : window.innerWidth);
+  const vh=(window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  const s=Math.min((vw-8)/w, (vh-6)/h, 1);
   g.style.transform='scale('+s+')';
 }
 window.addEventListener('resize',fit);
-window.addEventListener('orientationchange',()=>setTimeout(fit,200));
+window.addEventListener('orientationchange',()=>setTimeout(fit,250));
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',fit);
+  window.visualViewport.addEventListener('scroll',fit);
+}
 setTimeout(fit,60);
-window.addEventListener('load',()=>setTimeout(fit,100));
+window.addEventListener('load',()=>{ fit(); setTimeout(fit,150); setTimeout(fit,500); setTimeout(fit,1200); });
 
 /* 초기 보드(시작 전 배경 렌더) */
 board=emptyBoard(); nextPiece=null; state='ready';
