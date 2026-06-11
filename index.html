@@ -188,14 +188,15 @@
 
   /* 랭킹표 */
   .lbwrap{ width:100%; max-width:340px; }
-  table.lb{ width:100%; border-collapse:collapse; font-size:13px; background:var(--paper); border-radius:12px; overflow:hidden; border:3px solid var(--ink);}
-  table.lb th{ background:var(--ink); color:#fff; font-family:'DotGothic16',monospace; font-size:9px; letter-spacing:1px; padding:7px 4px;}
+  #lbBody{ max-height:330px; overflow-y:auto; -webkit-overflow-scrolling:touch; border:3px solid var(--ink); border-radius:12px; background:var(--paper);}
+  table.lb{ width:100%; border-collapse:collapse; font-size:13px; background:var(--paper);}
+  table.lb th{ position:sticky; top:0; z-index:2; background:var(--ink); color:#fff; font-family:'DotGothic16',monospace; font-size:9px; letter-spacing:1px; padding:7px 4px;}
   table.lb td{ padding:6px 4px; border-top:2px solid #e3d4ad; text-align:center;}
   table.lb td.nick{ text-align:left; padding-left:8px; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   table.lb tr.me td{ background:var(--yellow); font-weight:bold;}
   table.lb tr.top1 td:first-child{ color:var(--red);}
   .lbnote{ font-size:11px; color:#fff; opacity:.8; margin-top:8px;}
-  .spin{ color:#fff; font-size:14px; }
+  .spin{ color:var(--ink); font-size:14px; padding:26px 12px; text-align:center;}
 </style>
 </head>
 <body>
