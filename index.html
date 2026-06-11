@@ -32,10 +32,10 @@
     overflow:hidden;
     touch-action:none;
   }
-  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  #stage{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;}
   #game{
     width:408px;
-    transform-origin:center center;
+    transform-origin:top center;
     position:relative;
     padding:6px 10px 8px;
   }
@@ -181,6 +181,10 @@
   .btn2.alt{ background:var(--sage); }
   .howto{ font-size:12px; line-height:1.7; opacity:.9; text-align:left; margin:10px auto 0; max-width:260px;}
   .howto b{ color:var(--red);}
+  .sensbox{ margin:6px 0 12px; }
+  .senslabel{ font-size:13px; margin-bottom:6px; }
+  #sensSlider{ width:100%; accent-color:var(--red); height:24px; }
+  .sensends{ display:flex; justify-content:space-between; font-family:'DotGothic16',monospace; font-size:9px; opacity:.7; margin-top:2px; }
 
   /* 랭킹표 */
   .lbwrap{ width:100%; max-width:340px; }
@@ -265,6 +269,11 @@
       <div class="card">
         <h2>잠깐 쉬는 중</h2>
         <div class="en2">PAUSED</div>
+        <div class="sensbox">
+          <div class="senslabel">좌우 터치 민감도</div>
+          <input type="range" id="sensSlider" min="0" max="100" value="50">
+          <div class="sensends"><span>둔감</span><span>민감</span></div>
+        </div>
         <button class="btn2 go" id="resumeBtn">계속하기</button>
         <button class="btn2" id="restartFromPause">다시 시작</button>
       </div>
@@ -339,6 +348,9 @@ let board, cur, next7=[], nextPiece, score, level, lines, combo, state;
 let dropAcc=0, dropInterval=800, lastTime=0;
 let minGauge=100, startMs=0, curGauge=0, charStage=-1;
 let particles=[], shake=0, clearRows=null, clearTimer=0;
+let inputFocus=false, lbReturn='start', submitted=false;
+let touchSens=1.0;  // 좌우 이동 민감도 배수(작을수록 민감)
+try{ const sv=localStorage.getItem('butadon_sens'); if(sv!==null) touchSens=parseFloat(sv); }catch(e){}
 
 /* ===================== 캔버스 ===================== */
 const boardCv = document.getElementById('board');
@@ -672,6 +684,8 @@ function startGame(){
   board=emptyBoard(); next7=[]; score=0; level=1; lines=0; combo=-1;
   minGauge=100; charStage=-1; particles=[]; shake=0; clearRows=null;
   updateSpeed(); syncHUD();
+  submitted=false;
+  const sbtn=document.getElementById('submitBtn'); if(sbtn){ sbtn.disabled=false; sbtn.textContent='점수 등록하기'; }
   nextPiece=pull(); spawnNext();
   startMs=Date.now();
   hideAll(); state='play'; dropAcc=0; lastTime=performance.now();
@@ -702,22 +716,31 @@ function hideAll(){ document.querySelectorAll('.overlay').forEach(o=>o.classList
 
 /* ===================== 랭킹 ===================== */
 async function submitScore(){
+  if(submitted) return;                        // 이 판은 이미 등록됨
   const nickname=(document.getElementById('nickInput').value||'익명').trim().slice(0,12)||'익명';
   const btn=document.getElementById('submitBtn');
   btn.disabled=true; btn.textContent='등록 중…';
-  if(!sb){ openLeaderboard(); btn.disabled=false; btn.textContent='점수 등록하기'; return; }
+  lbReturn='over';
+  if(!sb){ submitted=true; openLeaderboard(); markSubmitted(); return; }
   try{
     await sb.from(TABLE).insert({
       nickname, score, level, lines,
       min_weight: minGauge, play_seconds: gameOver.secs||0
     });
     window.__me={nickname,score,lines};
+    submitted=true;
     openLeaderboard();
+    markSubmitted();
   }catch(e){
     console.warn(e);
     document.getElementById('lbBody').innerHTML='<div class="spin">등록에 실패했어요. 인터넷 연결을 확인해 주세요.</div>';
     show('lbScreen');
-  }finally{ btn.disabled=false; btn.textContent='점수 등록하기'; }
+    btn.disabled=false; btn.textContent='점수 등록하기';   // 실패 시 재시도 허용
+  }
+}
+function markSubmitted(){
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='등록 완료 ✓';
 }
 async function openLeaderboard(){
   show('lbScreen');
@@ -804,8 +827,9 @@ if(isTouch){ const pad=document.querySelector('.pad'); if(pad) pad.style.display
     }
     if(g.dropped) return;
 
-    if(Math.abs(dx)>Math.abs(dy)){           // 가로 우세 → 손가락 따라 좌우 이동(민감)
-      const target=Math.round(dx/g.stepX);
+    if(Math.abs(dx)>Math.abs(dy)){           // 가로 우세 → 손가락 따라 좌우 이동(민감도 적용)
+      const step=g.stepX*touchSens;
+      const target=Math.round(dx/step);
       while(g.cells<target){ move(1); g.cells++; }
       while(g.cells>target){ move(-1); g.cells--; }
     }
@@ -815,7 +839,7 @@ if(isTouch){ const pad=document.querySelector('.pad'); if(pad) pad.style.display
     e.preventDefault();
     if(g.dropped){ g=null; return; }                        // 도중에 이미 하드드롭됨
     const p=pt(e), dx=p.x-g.x0, dy=p.y-g.y0, dt=Math.max(1,Date.now()-g.t0);
-    const tapMove=Math.min(16, g.stepX*0.45);
+    const tapMove=Math.min(16, g.stepX*touchSens*0.45);
     if(g.maxd<tapMove && g.cells===0 && dt<TAP_TIME){      // 탭 → 회전
       rotate();
     } else if(dy>V_MIN && Math.abs(dy)>Math.abs(dx)){        // 아래 방향
@@ -834,20 +858,46 @@ function togglePause(){
 
 /* 버튼 배선 */
 document.getElementById('startBtn').onclick=startGame;
-document.getElementById('startLbBtn').onclick=openLeaderboard;
+document.getElementById('startLbBtn').onclick=()=>{ lbReturn='start'; openLeaderboard(); };
 document.getElementById('pauseBtn').onclick=()=>{ if(state==='play'||state==='paused') togglePause(); };
 document.getElementById('resumeBtn').onclick=togglePause;
 document.getElementById('restartFromPause').onclick=startGame;
-document.getElementById('lbTopBtn').onclick=openLeaderboard;
+document.getElementById('lbTopBtn').onclick=()=>{
+  if(state==='play'||state==='paused'){ state='paused'; lbReturn='resume'; }
+  else if(state==='over'){ lbReturn='over'; }
+  else { lbReturn='start'; }
+  openLeaderboard();
+};
 document.getElementById('submitBtn').onclick=submitScore;
 document.getElementById('retryBtn').onclick=startGame;
-document.getElementById('lbCloseBtn').onclick=()=>{ if(state==='over') show('overScreen'); else show('startScreen'); };
+document.getElementById('lbCloseBtn').onclick=()=>{
+  if(lbReturn==='resume'){ hideAll(); state='play'; lastTime=performance.now(); }
+  else if(lbReturn==='over'){ show('overScreen'); }
+  else { show('startScreen'); }
+};
+
+/* 좌우 민감도 슬라이더: 0(둔감)~100(민감) ↔ touchSens 1.5~0.5 */
+const sensSlider=document.getElementById('sensSlider');
+const sliderToSens=v=>1.5-(v/100)*1.0;
+const sensToSlider=s=>Math.round((1.5-s)*100);
+if(sensSlider){
+  sensSlider.value=sensToSlider(touchSens);
+  sensSlider.addEventListener('input',()=>{ touchSens=sliderToSens(+sensSlider.value); try{ localStorage.setItem('butadon_sens',touchSens); }catch(e){} });
+}
+
+/* 이름 입력 키패드: 입력 중 화면 재축소 방지 */
+const nickEl=document.getElementById('nickInput');
+if(nickEl){
+  nickEl.addEventListener('focus',()=>{ inputFocus=true; });
+  nickEl.addEventListener('blur',()=>{ inputFocus=false; setTimeout(fit,150); });
+}
 
 /* 시작화면 얼굴 */
 setFace('startFace', STAGE_IMG[0], '🧍');
 
 /* ===================== 화면 맞춤 ===================== */
 function fit(){
+  if(inputFocus) return;            // 이름 입력(키패드)으로 인한 축소 방지
   const g=document.getElementById('game');
   g.style.transform='scale(1)';
   const w=g.offsetWidth, h=g.offsetHeight;
