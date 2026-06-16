@@ -674,14 +674,20 @@ function drawMini(c, piece, SZ){
   c.clearRect(0,0,SZ,SZ);
   if(!piece) return;
   const m=piece.m;
-  const size=10, ox=(SZ-(m[0].length*size))/2, oy=(SZ-(m.length*size))/2;
-  for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++){
-    if(m[y][x]){
-      const px=ox+x*size, py=oy+y*size;
-      c.fillStyle=COLORS[piece.c]; c.fillRect(px,py,size,size);
-      c.fillStyle='rgba(255,255,255,.28)'; c.fillRect(px+1,py+1,size-2,2);
-      c.strokeStyle='rgba(0,0,0,.5)'; c.lineWidth=1.5; c.strokeRect(px+1,py+1,size-2,size-2);
-    }
+  // 실제 채워진 칸의 경계(빈 행·열 제거)
+  let minX=99,maxX=-1,minY=99,maxY=-1;
+  for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++) if(m[y][x]){
+    if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+  }
+  if(maxX<0) return;
+  const w=maxX-minX+1, h=maxY-minY+1, pad=6;
+  const size=Math.floor(Math.min((SZ-pad*2)/w, (SZ-pad*2)/h));
+  const ox=(SZ-w*size)/2, oy=(SZ-h*size)/2;
+  for(let y=minY;y<=maxY;y++) for(let x=minX;x<=maxX;x++) if(m[y][x]){
+    const px=ox+(x-minX)*size, py=oy+(y-minY)*size;
+    c.fillStyle=COLORS[piece.c]; c.fillRect(px,py,size,size);
+    c.fillStyle='rgba(255,255,255,.28)'; c.fillRect(px+1,py+1,size-2,2);
+    c.strokeStyle='rgba(0,0,0,.5)'; c.lineWidth=1.5; c.strokeRect(px+1,py+1,size-2,size-2);
   }
 }
 function drawNext(){ drawMini(nctx, nextPiece, NEXT_SZ); }
