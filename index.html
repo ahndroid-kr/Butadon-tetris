@@ -513,6 +513,7 @@ function spawnNext(){
   cur = nextPiece || pull();
   nextPiece = pull();
   canHold=true;            // 새 조각마다 보관 1회 가능
+  dropAcc=0;               // 중력 타이머 리셋 → 등장 직후 즉시 한 칸 내려가는 현상 방지
   drawNext(); drawHold();
   if(collide(cur,0,0)){ gameOver(); return; }
   state='play'; draw();
@@ -527,6 +528,7 @@ function holdSwap(){
     const swap=holdPiece;
     holdPiece=curKey;
     cur=makePiece(swap);
+    dropAcc=0;
     if(collide(cur,0,0)){ gameOver(); return; }
   }
   canHold=false;
