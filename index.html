@@ -351,7 +351,7 @@ const COLORS = {
 
 /* ===================== 상태 ===================== */
 let board, cur, next7=[], nextPiece, score, level, lines, combo, state;
-let dropAcc=0, dropInterval=800, lastTime=0;
+let dropAcc=0, dropInterval=800, lastTime=0, garbageAcc=0;
 let minGauge=100, startMs=0, curGauge=0, charStage=-1;
 let particles=[], shake=0, clearRows=null, clearTimer=0;
 let inputFocus=false, lbReturn='start', submitted=false;
@@ -503,7 +503,7 @@ function resolveClear(){
   score+=gain;
 
   const newLevel=Math.floor(lines/LINES_PER_LEVEL)+1;
-  if(newLevel>level){ const up=newLevel-level; level=newLevel; updateSpeed(); for(let i=0;i<up;i++) addGarbage(); }
+  if(newLevel>level){ level=newLevel; updateSpeed(); }   // 속도만 올림(가비지는 시간 기반)
 
   clearRows=null;
   syncHUD();
@@ -536,11 +536,20 @@ function holdSwap(){
   beep(380,0.05,'square',0.03);
 }
 function addGarbage(){
-  // 레벨업 시 바닥에 지방(가비지) 한 줄 추가 → 스택이 위로 밀림
+  if(state!=='play') return;
+  if(board[0].some(v=>v)){ gameOver(); return; }   // 맨 윗줄이 찼는데 더 밀어올림 → 천장 초과 → 게임오버
   const gap=Math.floor(Math.random()*COLS);
   board.shift();
   const row=Array(COLS).fill(8); row[gap]=0;
-  board.push(row);
+  board.push(row);                                  // 바닥에서 한 줄 밀어 올림
+  while(collide(cur,0,0) && cur.y>-2) cur.y--;       // 올라온 블록과 현재 조각이 겹치면 위로 보정
+  if(collide(cur,0,0)){ gameOver(); }
+}
+/* 가비지 간격(ms): 줄을 많이 지울수록 짧아지고, 200줄 넘으면 가속(완화 버전) */
+function garbageInterval(){
+  let s = (lines < 200) ? (20000 - lines*25)        // 0~200줄: 약 20s→15s 완만
+                        : (15000 - (lines-200)*25);  // 200줄~: 점진 가속
+  return Math.max(4000, s);
 }
 function updateSpeed(){ dropInterval=Math.max(90, 800-(level-1)*65); }
 
@@ -706,6 +715,8 @@ function loop(t){
   if(state==='play'){
     dropAcc+=dt;
     if(dropAcc>=dropInterval){ dropAcc=0; if(!collide(cur,0,1)){ cur.y++; } else { lock(); } }
+    garbageAcc+=dt;
+    if(garbageAcc>=garbageInterval()){ garbageAcc=0; addGarbage(); }
     draw();
   } else if(state==='clearing'){
     clearTimer+=dt;
@@ -729,6 +740,7 @@ function startGame(){
   board=emptyBoard(); next7=[]; score=0; level=1; lines=0; combo=-1;
   minGauge=100; charStage=-1; particles=[]; shake=0; clearRows=null;
   holdPiece=null; canHold=true; drawHold();
+  garbageAcc=0;
   updateSpeed(); syncHUD();
   submitted=false;
   const sbtn=document.getElementById('submitBtn'); if(sbtn){ sbtn.disabled=false; sbtn.textContent='점수 등록하기'; }
